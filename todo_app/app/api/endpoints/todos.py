@@ -53,7 +53,7 @@ def read_todo(
     return todo
 
 @router.put("/{todo_id}", response_model=schemas.Todo)
-def read_todo(
+def update_todo(
     *,
     db: Session = Depends(get_db),
     todo_id: int,
@@ -74,5 +74,36 @@ def read_todo(
     db.refresh(todo)
     return todo
 
-
+@router.delete("/{todo_id}", response_model=schemas.Todo)
+def delete_todo(
+    *,
+    db: Session = Depends(get_db),
+    todo_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    todo = db.query(models.Todo).filter(models.Todo.id, models.Todo.owner_id == current_user.id).first()
+    if not todo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")
     
+    db.delete(todo)
+    db.commit()
+    return None
+
+@router.patch("/{todo_id}/toggle", response_model=schemas.Todo)
+def toggle_todo_completed(
+    *,
+    db: Session = Depends(get_db),
+    todo_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """Toggle todo completed status"""
+    todo = db.query(models.Todo).filter(models.Todo.id, models.Todo.owner_id == current_user.id).first()
+    if not todo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")
+    
+    todo.completed = not todo.completed
+
+    db.add(todo)
+    db.commit()
+    db.refresh(todo)
+    return todo
