@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pi Cloud Storage</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f7f7f7;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            background: #fff;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .file-list {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.2s ease;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .file-item button {
+                margin-top: 10px;
+            }
+        }
+
+        #uploadStatus {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pi Cloud Storage</h1>
+
+    <div class="upload-area">
+        <h3>Upload Files</h3>
+        <input type="file" id="fileInput" multiple>
+        <button onclick="uploadFiles()">Upload</button>
+        <div id="uploadStatus"></div>
+    </div>
+
+    <div class="file-list">
+        <h3>Files</h3>
+        <button onclick="loadFiles()">Refresh</button>
+        <div id="filesList"></div>
+    </div>
+
+    <script>
+        function uploadFiles() {
+            const files = document.getElementById('fileInput').files;
+            const status = document.getElementById('uploadStatus');
+            status.innerHTML = '';
+
+            if (files.length === 0) {
+                status.textContent = 'Please select files';
+                return;
+            }
+
+            let messages = [];
+
+            Array.from(files).forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        messages.push(`✓ ${file.name} uploaded`);
+                    } else {
+                        messages.push(`✗ ${file.name} failed: ${data.error}`);
+                    }
+
+                    if (index === files.length - 1) {
+                        status.innerHTML = messages.join('<br>');
+                        loadFiles();
+                    }
+                })
+                .catch(error => {
+                    messages.push(`✗ ${file.name} error: ${error}`);
+                    if (index === files.length - 1) {
+                        status.innerHTML = messages.join('<br>');
+                    }
+                });
+            });
+        }
+
+        function loadFiles() {
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = 'Loading...';
+
+            fetch('/api/files')
+            .then(response => response.json())
+            .then(data => {
+                filesList.innerHTML = '';
+
+                if (!data.files || data.files.length === 0) {
+                    filesList.innerHTML = '<p>No files uploaded yet.</p>';
+                    return;
+                }
+
+                const fragment = document.createDocumentFragment();
+
+                data.files.forEach(file => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'file-item';
+                    fileDiv.innerHTML = `
+                        <span><strong>${file.name}</strong> 
+                        (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <button onclick="downloadFile('${file.name}')">Download</button>
+                    `;
+                    fragment.appendChild(fileDiv);
+                });
+
+                filesList.appendChild(fragment);
+            })
+            .catch(err => {
+                filesList.innerHTML = '<p>Error loading files.</p>';
+            });
+        }
+
+        function downloadFile(filename) {
+            window.open(`/api/download/${encodeURIComponent(filename)}`, '_blank');
+        }
+
+        // Load files on page load
+        window.addEventListener('DOMContentLoaded', loadFiles);
+    </script>
+</body>
+</html>
