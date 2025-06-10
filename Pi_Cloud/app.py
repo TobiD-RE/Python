@@ -1,22 +1,32 @@
-from flask import Flask, render_template, request, jsonify, send_file, render_template_string
+from flask import Flask, render_template, request, jsonify, send_file
 import os
 import json
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import mimetypes
-from pathlib import Path
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = ''
 MAX_FILE_SIZE = 2048 * 1024 *1024
-ALLOWED_EXTEMSIONS = {'txt', 'pdf', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'doc', 'docx', 'zip', '7z', 'heic'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'doc', 'docx', 'zip', '7z', 'heic'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
+CUSTOM_MIME_TYPES = {
+    '.heic': 'image/heic',
+    ' docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.7z': 'application/x-7z-compressed'
+}
+
+def get_mime_type(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    return CUSTOM_MIME_TYPES.get(ext, mimetypes.guess_type(filepath)[0] or 'unknown')
+
+
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTEMSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_file_info(filepath):
     stat = os.stat(filepath)
