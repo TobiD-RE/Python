@@ -34,8 +34,12 @@ def get_file_info(filepath):
         'name': os.path.basename(filepath),
         'filesize': stat.st_size,
         'modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
-        'type': mimetypes.guess_type(filepath)[0] or 'unknown'
+        'type': mimetypes.guess_type(filepath)
     }
+
+@app.errorhandler(413)
+def file_too_big(error):
+    return jsonify({'success': False, 'error': 'File too big'}), 413
 
 @app.route('/')
 def home():
@@ -59,9 +63,9 @@ def upload_file():
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        counter = 1
         original_filepath = filepath
+        counter = 1
+        
         while os.path.exists(filepath):
             name, ext = os.path.splitext(original_filepath)
             filepath = f"{name}_{counter}{ext}"
@@ -86,9 +90,10 @@ def list_files():
         
         files = []
         for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if os.path.isfile(filepath):
-                files.append(get_file_info(filepath))
+            if allowed_file(filename):
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                if os.path.isfile(filepath):
+                    files.append(get_file_info(filepath))
 
         files.sort(key=lambda x: x['modified'], reverse=True)
 
