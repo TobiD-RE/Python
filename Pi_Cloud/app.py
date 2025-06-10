@@ -87,6 +87,45 @@ def list_files():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+@app.route('/api/download/<filename>')
+def download_file(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(filepath, as_attachment=True)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/delete/<filename>', methods=['DELETE'])
+def delete_file(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+
+        if not os.path.exists(filepath):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        os.remove(filepath)
+        return jsonify({'success': True, 'message': 'File deleted successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route('/health')
+def health_check():
+    disk_usage = os.statvfs(app.config['UPLOAD_FOLDER'])
+    free_space = disk_usage.f_frsize * disk_usage.f_bavail
+
+    return jsonify({
+        'status': 'healthy',
+        'free_space_gb': round(free_space / (1024**3), 2),
+        'upload_folder': app.config['UPLOAD_FOLDER']
+    })    
+
+
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
